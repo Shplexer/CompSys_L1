@@ -10,89 +10,155 @@ enum class operations {
 	exit = 6
 };
 
+enum class restartCheck {
+	restart = 1,
+	exit = 2
+};
+
+template<typename T>
+T checkInput() {
+	T userInput{};
+	while (!(cin >> userInput)) {
+		cin.clear();
+		cin.ignore(INT_MAX, '\n');
+		cout << "Введены некорректные данные. Попробуйте снова." << endl;
+	}
+	cin.ignore(INT_MAX, '\n');
+	return userInput;
+}
+
 int main() {
 	setlocale(LC_CTYPE, "Russian");
+	cout << "Добро пожаловать!" << endl;
+	cout << "Работа #1 была выполнена студентами группы 423 Ореховым Даниилом, Беликовым Ильей и Лешуковым Никитой." << endl;
+	cout << "Задача: разработать asm-вставку для подсчета суммы, разности, произведения, целой части частного и остатка от целочисленного деления двух целочисленных значений."<<endl;
 
-	int firstOperand = 0;
-	int secondOperand = 0;
-	int result = 0;
-	string opSign = "";
-	cout << "Выберите операцию: " << endl;
-	cout << "1 - сложение" << endl 
-		<< "2 - вычитание" << endl
-		<< "3 - умножение" << endl
-		<< "4 - деление" << endl
-		<< "5 - найти остаток от деления" << endl
-		<< "6 - выход" << endl
-		;
-	int choice = 0;
-	cin >> choice;
-	operations operation = static_cast<operations>(choice);
+	bool exitFlag = false;
+	do {
+		bool errFlag = false;
+		bool exitCheckFlag = true;
+		int firstOperand = 0;
+		int secondOperand = 0;
+		int result = 0;
+		string opSign = "";
+		cout << "=============================================="<<endl;
+		cout << "Выберите операцию: " << endl
+			<< "1 - сложение" << endl
+			<< "2 - вычитание" << endl
+			<< "3 - умножение" << endl
+			<< "4 - деление" << endl
+			<< "5 - найти остаток от деления" << endl
+			<< "6 - выход" << endl;
 
-	cout << "Введите первый операнд: ";
-	cin >> firstOperand;
-	cout << "Введите второй операнд: ";
-	cin >> secondOperand;
+		operations operation = static_cast<operations>(checkInput<int>());
+		cout << "==============================================" << endl;
+		if (operation != operations::exit) {
+			cout << "Введите первый операнд: ";
+			firstOperand = checkInput<int>();
+			cout << "Введите второй операнд: ";
+			secondOperand = checkInput<int>();
+		}
 
-	switch (operation)
-	{
-	case operations::add:
-		opSign = "+";
-		_asm {
-			MOV EAX, firstOperand
-			MOV EBX, secondOperand
-			ADD EAX, EBX
-			MOV result, EAX
+		switch (operation)
+		{
+		case operations::add:
+			opSign = "+";
+			_asm {
+				MOV EAX, firstOperand
+				MOV EBX, secondOperand
+				ADD EAX, EBX
+				MOV result, EAX
+			}
+			break;
+		case operations::subtract:
+			opSign = "-";
+			_asm {
+				MOV EAX, firstOperand
+				MOV EBX, secondOperand
+				SUB EAX, EBX
+				MOV result, EAX
+			}
+			break;
+		case operations::multiply:
+			opSign = "*";
+			_asm {
+				MOV EAX, firstOperand
+				MOV EBX, secondOperand
+				IMUL EAX, EBX
+				MOV result, EAX
+			}
+			break;
+		case operations::divide:
+			opSign = "/";
+			if (secondOperand == 0) {
+				cout << "Деление на ноль!" << endl;
+				errFlag = true;
+				break;
+			}
+			_asm {
+				MOV EAX, firstOperand	// Перемещаем первый операнд в регистр EAX.
+				CDQ						// Расширяем знаковый бит содержимого регистра EAX на регистр EDX, чтобы подготовиться к делению
+											//с дополнением до двойного слова (64-бита) при делении 32-битных чисел со знаком.	
+				MOV EBX, secondOperand	// Перемещаем второй операнд в регистр EBX.
+				IDIV EBX				// Выполняем деление значения в EAX на значение в EBX.
+											//Результат будет в EAX, остаток от деления - в EDX.
+				MOV result, EAX			// Перемещаем результат деления в переменную result.
+			}
+			break;
+		case operations::remainder:
+			if (secondOperand == 0) {
+				cout << "Деление на ноль!" << endl;
+				errFlag = true;
+				break;
+			}
+			opSign = "%";
+			_asm {
+				MOV EAX, firstOperand
+				CDQ
+				MOV EBX, secondOperand
+				IDIV EBX
+				MOV result, EDX
+			}
+			if (result < 0) {
+				result += abs(secondOperand);
+			}
+			break;
+		case operations::exit:
+			exit(0);
+		default:
+			cout << "Введены некорректные данные. Попробуйте снова." << endl;
+			errFlag = true;
+			break;
 		}
-		break;
-	case operations::subtract:
-		opSign = "-";
-		_asm {
-			MOV EAX, firstOperand
-			MOV EBX, secondOperand
-			SUB EAX, EBX
-			MOV result, EAX
-		}
-		break;
-	case operations::multiply:
-		opSign = "*";
-		_asm {
-			MOV EAX, firstOperand
-			MOV EBX, secondOperand
-			IMUL EAX, EBX
-			MOV result, EAX
-		}
-		break;
-	case operations::divide:
-		opSign = "/";
-		_asm {
-			MOV EAX, firstOperand
-			CDQ						//распространяем знаковый бит EAX на EDX
-			MOV EBX, secondOperand
-			IDIV EBX
-			MOV result, EAX
-		}
-		break;
-	case operations::remainder:
-		opSign = "%";
-		_asm {
-			MOV EAX, firstOperand
-			CDQ						//распространяем знаковый бит EAX на EDX
-			MOV EBX, secondOperand
-			IDIV EBX
-			MOV result, EDX
-		}
-		if (result < 0) {
-			result += abs(secondOperand);
-		}
-		break;
-	case operations::exit:
-		break;
-	default:
-		break;
-	}
 
+		if (!errFlag && !exitFlag) {
+			cout << firstOperand << " " << opSign << " " << secondOperand << " = " << result << endl;
+			cout << "Запустить программу снова?" << endl;
+			cout << "1. Да" << endl
+				<< "2. Нет" << endl;
+			exitCheckFlag = false;
+		}
+		else {
+			exitCheckFlag = true;
+			exitFlag = false;
+		}
 
-	cout << firstOperand << " " << opSign << " " << secondOperand << " = " << result << endl;
+		while (!exitCheckFlag) {
+			exitCheckFlag = true;
+			restartCheck check = static_cast<restartCheck>(checkInput<int>());
+			switch (check)
+			{
+			case restartCheck::restart:
+				exitFlag = false;
+				break;
+			case restartCheck::exit:
+				exitFlag = true;
+				break;
+			default:
+				exitCheckFlag = false;
+				break;
+			}
+		}
+	} while (!exitFlag);
 	return 0;
 }
